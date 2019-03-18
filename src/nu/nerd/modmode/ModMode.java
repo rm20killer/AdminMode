@@ -3,6 +3,7 @@ package nu.nerd.modmode;
 import de.diddiz.LogBlock.LogBlock;
 import me.lucko.luckperms.LuckPerms;
 import nu.nerd.nerdboard.NerdBoard;
+import nu.nerd.nerdpoints.NerdPoints;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -52,6 +53,8 @@ public class ModMode extends JavaPlugin {
      */
     static final HashSet<UUID> VANISHED = new HashSet<>();
 
+    private boolean _hasNerdPoints = false;
+
     // ------------------------------------------------------------------------
     /**
      * @see JavaPlugin#onEnable().
@@ -63,21 +66,27 @@ public class ModMode extends JavaPlugin {
         new ModModeListener();
         new Commands();
 
-        assertDependency("NerdBoard", NerdBoard.class, true,  p -> NERDBOARD = new NerdBoardHook((NerdBoard) p));
-        assertDependency("LogBlock",  LogBlock.class,  false, p -> new LogBlockListener());
-        assertDependency("LuckPerms", null,            true,  p -> PERMISSIONS = new Permissions(LuckPerms.getApi()));
+        assertDependency("NerdBoard",  NerdBoard.class,  true,  p -> NERDBOARD = new NerdBoardHook((NerdBoard) p));
+        assertDependency("LogBlock",   LogBlock.class,   false, p -> new LogBlockListener());
+        assertDependency("LuckPerms",  null,             true,  p -> PERMISSIONS = new Permissions(LuckPerms.getApi()));
+        assertDependency("NerdPoints", NerdPoints.class, false, p -> _hasNerdPoints = true);
 
         Bukkit.getScheduler().runTaskTimer(ModMode.PLUGIN, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
-                UUID uuid = player.getUniqueId();
-                if (MODMODE.contains(uuid)) {
-                    String state = ChatColor.GREEN + "You are currently in ModMode";
-                    if (!VANISHED.contains(uuid)) {
-                        state += ChatColor.GRAY + " (" + ChatColor.RED + "unvanished" + ChatColor.GRAY + ")";
+                String actionBar = null;
+                if (isModMode(player)) {
+                    actionBar = String.format("%sYou are currently in ModMode", ChatColor.GREEN);
+                    if (!isVanished(player)) {
+                        actionBar += String.format(" %s(%sunvanished%s)", ChatColor.GRAY, ChatColor.RED, ChatColor.GRAY);
                     }
-                    player.sendActionBar(state);
-                } else if (VANISHED.contains(uuid)) {
-                    player.sendActionBar(String.format("%sYou are currently %s", ChatColor.BLUE, "vanished"));
+                } else if (isVanished(player)) {
+                    actionBar = String.format("%sYou are currently vanished", ChatColor.BLUE);
+                }
+                if (actionBar != null) {
+                    if (_hasNerdPoints) {
+                        NerdPoints.PLUGIN.suspendHUD(player);
+                    }
+                    player.sendActionBar(actionBar);
                 }
             }
         }, 1, 20);
