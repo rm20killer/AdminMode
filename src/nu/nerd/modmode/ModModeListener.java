@@ -2,18 +2,16 @@ package nu.nerd.modmode;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerGameModeChangeEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 
 import static nu.nerd.modmode.ModMode.CONFIG;
 
@@ -45,7 +43,7 @@ public class ModModeListener implements Listener {
             boolean vanished = isAdmin ? loggedOutVanished : inModMode && loggedOutVanished;
             if (vanished) {
                 ModMode.CONFIG.suppressJoinMessage(player, event.getJoinMessage());
-                event.setJoinMessage(null);
+                event.setJoinMessage("");
                 ModMode.PLUGIN.setVanished(player, true);
             }
             ModMode.PLUGIN.restoreFlight(player, inModMode);
@@ -70,6 +68,17 @@ public class ModModeListener implements Listener {
             boolean isAdmin = player.hasPermission(Permissions.ADMIN);
             if (isAdmin || inModMode) {
                 CONFIG.setLoggedOutVanished(player, true);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerPickupItem(EntityPickupItemEvent e) {
+        Entity entity = e.getEntity();
+        if (entity instanceof Player) {
+            Player player = (Player) entity;
+            if (ModMode.PLUGIN.isVanished(player)) {
+                e.setCancelled(true);
             }
         }
     }

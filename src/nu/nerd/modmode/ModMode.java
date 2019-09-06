@@ -3,7 +3,6 @@ package nu.nerd.modmode;
 import de.diddiz.LogBlock.LogBlock;
 import me.lucko.luckperms.LuckPerms;
 import nu.nerd.nerdboard.NerdBoard;
-import nu.nerd.nerdpoints.NerdPoints;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -53,8 +52,6 @@ public class ModMode extends JavaPlugin {
      */
     static final HashSet<UUID> VANISHED = new HashSet<>();
 
-    private boolean _hasNerdPoints = false;
-
     // ------------------------------------------------------------------------
     /**
      * @see JavaPlugin#onEnable().
@@ -69,7 +66,6 @@ public class ModMode extends JavaPlugin {
         assertDependency("NerdBoard",  NerdBoard.class,  true,  p -> NERDBOARD = new NerdBoardHook((NerdBoard) p));
         assertDependency("LogBlock",   LogBlock.class,   false, p -> new LogBlockListener());
         assertDependency("LuckPerms",  null,             true,  p -> PERMISSIONS = new Permissions(LuckPerms.getApi()));
-        assertDependency("NerdPoints", NerdPoints.class, false, p -> _hasNerdPoints = true);
 
         Bukkit.getScheduler().runTaskTimer(ModMode.PLUGIN, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
@@ -83,9 +79,6 @@ public class ModMode extends JavaPlugin {
                     actionBar = String.format("%sYou are currently vanished", ChatColor.BLUE);
                 }
                 if (actionBar != null) {
-                    if (_hasNerdPoints) {
-                        NerdPoints.PLUGIN.suspendHUD(player);
-                    }
                     player.sendActionBar(actionBar);
                 }
             }
@@ -179,9 +172,10 @@ public class ModMode extends JavaPlugin {
                 PlayerState.savePlayerData(player, !enteringModMode);
                 PlayerState.loadPlayerData(player, enteringModMode);
 
-                setVanished(player, vanished);
-                setTranscendentalAttributes(player);
-                runCommands(player, enteringModMode ? CONFIG.AFTER_ACTIVATION_COMMANDS : CONFIG.AFTER_DEACTIVATION_COMMANDS);
+                this.setVanished(player, vanished);
+                this.runCommands(player, enteringModMode ? CONFIG.AFTER_ACTIVATION_COMMANDS : CONFIG.AFTER_DEACTIVATION_COMMANDS);
+                this.restoreFlight(player, enteringModMode);
+
                 long duration = System.currentTimeMillis() - timeStart;
                 player.sendMessage(String.format("%sYou are %s in ModMode %s(took %d ms, %.2f ticks)",
                     ChatColor.RED,
@@ -196,51 +190,37 @@ public class ModMode extends JavaPlugin {
 
     // ------------------------------------------------------------------------
     /**
-     * Sets a player's transcendental attributes, i.e. makes them "leave no
-     * footprints," or so to speak.
-     *
-     * @param player the player.
-     */
-    private void setTranscendentalAttributes(Player player) {
-        boolean inModMode = PLUGIN.isModMode(player);
-        boolean isVanished = PLUGIN.isVanished(player);
-        boolean isTranscendental = PLUGIN.isTranscendental(player);
-        player.setAffectsSpawning(isTranscendental);
-        player.setAllowFlight((CONFIG.ALLOW_FLIGHT && inModMode) || player.getGameMode() == GameMode.CREATIVE);
-        player.setCanPickupItems(!isVanished);
-        player.setInvulnerable(isTranscendental);
-        player.setSleepingIgnored(isTranscendental);
-        player.setSilent(isTranscendental);
-    }
-
-    // ------------------------------------------------------------------------
-    /**
      * Sets the player's current vanish state.
      *
      * @param player the player.
      * @param vanishing true to vanish; false to unvanish.
      */
     void setVanished(Player player, boolean vanishing) {
-        UUID uuid = player.getUniqueId();
-        if (vanishing) {
-            VANISHED.add(uuid);
-            player.sendMessage(ChatColor.DARK_AQUA + "You have vanished. Poof.");
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                Bukkit.getOnlinePlayers().forEach(p -> {
-                    if (!Permissions.isAdmin(p) && !isModMode(p)) {
-                        p.hidePlayer(this, player);
+        for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
+            if (Permissions.isAdmin(player)) {
+                if (!Permissions.isAdmin(otherPlayer)) {
+                    if (vanishing) {
+                        otherPlayer.hidePlayer(this, player);
+                    } else {
+                        otherPlayer.showPlayer(this, player);
                     }
-                });
-            }, 1);
+                }
+            } else {
+                if (!Permissions.isAdmin(otherPlayer)) {
+                    if (vanishing) {
+                        otherPlayer.hidePlayer(this, player);
+                    } else {
+                        otherPlayer.showPlayer(this, player);
+                    }
+                }
+            }
+        }
+        if (vanishing) {
+            VANISHED.add(player.getUniqueId());
         } else {
-            VANISHED.remove(uuid);
-            player.sendMessage(ChatColor.DARK_AQUA + "You are no longer vanished.");
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                Bukkit.getOnlinePlayers().forEach(p -> p.showPlayer(this, player));
-            }, 1);
+            VANISHED.remove(player.getUniqueId());
         }
         NERDBOARD.reconcilePlayerWithVanishState(player);
-        setTranscendentalAttributes(player);
     }
 
     // ------------------------------------------------------------------------
@@ -263,7 +243,7 @@ public class ModMode extends JavaPlugin {
      * @return true if the player is in ModMode or is vanished.
      */
     public boolean isTranscendental(Player player) {
-        return player != null && (isModMode(player) || isVanished(player));
+        return player != null && (this.isModMode(player) || this.isVanished(player));
     }
 
     // ------------------------------------------------------------------------

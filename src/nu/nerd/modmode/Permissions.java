@@ -4,7 +4,6 @@ import me.lucko.luckperms.api.LuckPermsApi;
 import me.lucko.luckperms.api.Track;
 import me.lucko.luckperms.api.User;
 import me.lucko.luckperms.api.context.ContextSet;
-import me.lucko.luckperms.api.event.EventBus;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -14,21 +13,18 @@ public class Permissions {
 
     private final LuckPermsApi API;
 
-    private final EventBus EVENT_BUS;
-
     private static Track MODMODE_TRACK;
     private static Track FOREIGN_SERVER_ADMINS_TRACK;
 
     Permissions(LuckPermsApi api) {
         API = api;
-        EVENT_BUS = api.getEventBus();
         MODMODE_TRACK = getTrack("modmode-track");
         FOREIGN_SERVER_ADMINS_TRACK = getTrack("foreign-server-admins-modmode-track");
         if (MODMODE_TRACK == null) {
             ModMode.log("Track modmode-track could not be found.");
         }
         if (FOREIGN_SERVER_ADMINS_TRACK == null) {
-            ModMode.log("Track modmode-track could not be found.");
+            ModMode.log("Track foreign-server-admins-modmode-track could not be found.");
         }
     }
 
@@ -97,16 +93,16 @@ public class Permissions {
             return CompletableFuture.completedFuture(null);
         }
         return futureUser.thenComposeAsync(user -> CompletableFuture.supplyAsync(() -> {
-                if (user != null && !isAdmin(player)) {
-                    Track track = getAppropriateTrack(player);
-                    if (promote) {
-                        track.promote(user, ContextSet.empty());
-                    } else {
-                        track.demote(user, ContextSet.empty());
-                    }
-                    return user;
+            if (user != null && !isAdmin(player)) {
+                Track track = getAppropriateTrack(player);
+                if (promote) {
+                    track.promote(user, ContextSet.empty());
+                } else {
+                    track.demote(user, ContextSet.empty());
                 }
-                return null;
+                return user;
+            }
+            return null;
          })).thenAcceptAsync(u -> {
              if (u != null) {
                  API.getUserManager().saveUser(u);
