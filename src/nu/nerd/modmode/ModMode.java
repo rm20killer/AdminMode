@@ -1,8 +1,5 @@
 package nu.nerd.modmode;
 
-import de.diddiz.LogBlock.LogBlock;
-import me.lucko.luckperms.LuckPerms;
-import nu.nerd.nerdboard.NerdBoard;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -14,9 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.UUID;
-import java.util.function.Consumer;
 
-// ------------------------------------------------------------------------
 /**
  * The main plugin class.
  */
@@ -33,16 +28,6 @@ public class ModMode extends JavaPlugin {
     public static Configuration CONFIG;
 
     /**
-     * Encapsulation of LuckPerms-related methods and permission constants.
-     */
-    private static Permissions PERMISSIONS;
-
-    /**
-     * Encapsulation of NerdBoard-related methods.
-     */
-    static NerdBoardHook NERDBOARD;
-
-    /**
      * Cache of players currently in ModMode.
      */
     static final HashSet<UUID> MODMODE = new HashSet<>();
@@ -52,7 +37,6 @@ public class ModMode extends JavaPlugin {
      */
     static final HashSet<UUID> VANISHED = new HashSet<>();
 
-    // ------------------------------------------------------------------------
     /**
      * @see JavaPlugin#onEnable().
      */
@@ -63,9 +47,10 @@ public class ModMode extends JavaPlugin {
         new ModModeListener();
         new Commands();
 
-        assertDependency("NerdBoard",  NerdBoard.class,  true,  p -> NERDBOARD = new NerdBoardHook((NerdBoard) p));
-        assertDependency("LogBlock",   LogBlock.class,   false, p -> new LogBlockListener());
-        assertDependency("LuckPerms",  null,             true,  p -> PERMISSIONS = new Permissions(LuckPerms.getApi()));
+        Plugin logblock = getServer().getPluginManager().getPlugin("logblock");
+        if (logblock != null && logblock.isEnabled()) {
+            new LogBlockListener();
+        }
 
         Bukkit.getScheduler().runTaskTimer(ModMode.PLUGIN, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
@@ -85,19 +70,25 @@ public class ModMode extends JavaPlugin {
         }, 1, 20);
 
         Bukkit.getScheduler().runTaskTimer(ModMode.PLUGIN, () -> {
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
-                    if (!otherPlayer.canSee(player)) {
-                        otherPlayer.hidePlayer(this, player);
+            for (Player a : Bukkit.getOnlinePlayers()) {
+                for (Player b : Bukkit.getOnlinePlayers()) {
+                    if (canPlayerASeePlayerB(a, b)) {
+                        a.showPlayer(this, b);
                     } else {
-                        otherPlayer.showPlayer(this, player);
+                        a.hidePlayer(this, b);
                     }
                 }
             }
         }, 1, 10);
     }
 
-    // ------------------------------------------------------------------------
+    private static boolean canPlayerASeePlayerB(Player a, Player b) {
+        if (Permissions.isAdmin(a)) return true;
+        if (PLUGIN.isModMode(a)) return true;
+        if (PLUGIN.isVanished(b)) return false;
+        return true;
+    }
+
     /**
      * @see JavaPlugin#onDisable().
      */
@@ -107,40 +98,6 @@ public class ModMode extends JavaPlugin {
         CONFIG.save();
     }
 
-    // ------------------------------------------------------------------------
-    /**
-     * Asserts a plugin dependency by fetching the plugin from the loader by
-     * name, checking if it is an instance of pluginClass, and then supplies it
-     * to the consumer. If it is a hard dependency (if required is true), then
-     * this plugin will disable if the dependency is not found.
-     *
-     * @param name the name of the plugin.
-     * @param pluginClass the plugin class.
-     * @param required true if the plugin is a hard dependency.
-     * @param consumer the action to take if the plugin is found.
-     */
-    private void assertDependency(String name, Class pluginClass, boolean required, Consumer<Object> consumer) {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin(name);
-        if (pluginClass != null && pluginClass.isInstance(plugin)) {
-            consumer.accept(pluginClass.cast(plugin));
-            return;
-        } else {
-            try {
-                consumer.accept(null);
-                return;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        if (required) {
-            log("Fatal error: " + name + " is required but could not be found.");
-            Bukkit.getPluginManager().disablePlugin(this);
-        } else {
-            log("Warn: " + name + " missing or unloaded. Integration disabled.");
-        }
-    }
-
-    // ------------------------------------------------------------------------
     /**
      * Toggles the player's ModMode state.
      *
@@ -149,81 +106,70 @@ public class ModMode extends JavaPlugin {
     void toggleModMode(Player player) {
         final long timeStart = System.currentTimeMillis();
         boolean isAdmin = player.hasPermission(Permissions.ADMIN);
-        boolean enteringModMode = !isModMode(player);
+        boolean enteringModMode = !this.isModMode(player);
         boolean vanished = enteringModMode || (isAdmin && CONFIG.loggedOutVanished(player));
         runCommands(player, enteringModMode ? CONFIG.BEFORE_ACTIVATION_COMMANDS : CONFIG.BEFORE_DEACTIVATION_COMMANDS);
-        PERMISSIONS
+        Permissions
             .updatePermissions(player, enteringModMode) // off main thread
             .thenRun(() -> { // back on main thread
-                Bukkit.getScheduler().runTask(this, () -> { // no indent for small diff
-                if (enteringModMode) {
-                    MODMODE.add(player.getUniqueId());
-                } else {
-                    if (CONFIG.loggedOutVanished(player)) {
-                        if (!isAdmin) {
-                            getServer().broadcastMessage(CONFIG.getJoinMessage(player));
+                Bukkit.getScheduler().runTask(this, () -> {
+                    if (enteringModMode) {
+                        MODMODE.add(player.getUniqueId());
+                    } else {
+                        if (CONFIG.loggedOutVanished(player)) {
+                            if (!isAdmin) {
+                                getServer().broadcastMessage(CONFIG.getJoinMessage(player));
+                            }
+                            // we don't need to know this anymore
+                            CONFIG.setLoggedOutVanished(player, false);
                         }
-                        // we don't need to know this anymore
-                        CONFIG.setLoggedOutVanished(player, false);
+                        MODMODE.remove(player.getUniqueId());
                     }
-                    MODMODE.remove(player.getUniqueId());
-                }
-                // Save player data for the old ModMode state and load for the new.
-                PlayerState.savePlayerData(player, !enteringModMode);
-                PlayerState.loadPlayerData(player, enteringModMode);
+                    // Save player data for the old ModMode state and load for the new.
+                    PlayerState.savePlayerData(player, !enteringModMode);
+                    PlayerState.loadPlayerData(player, enteringModMode);
 
-                this.setVanished(player, vanished);
-                this.runCommands(player, enteringModMode ? CONFIG.AFTER_ACTIVATION_COMMANDS : CONFIG.AFTER_DEACTIVATION_COMMANDS);
-                this.restoreFlight(player, enteringModMode);
+                    this.setVanished(player, vanished);
+                    this.runCommands(player, enteringModMode ? CONFIG.AFTER_ACTIVATION_COMMANDS : CONFIG.AFTER_DEACTIVATION_COMMANDS);
+                    this.restoreFlight(player, enteringModMode);
 
-                long duration = System.currentTimeMillis() - timeStart;
-                player.sendMessage(String.format("%sYou are %s in ModMode %s(took %d ms, %.2f ticks)",
-                    ChatColor.RED,
-                    enteringModMode ? "now" : "no longer",
-                    ChatColor.GRAY,
-                    duration,
-                    (double) duration/50));
-                log("Task took " + duration + " ms.");
+                    long duration = System.currentTimeMillis() - timeStart;
+                    player.sendMessage(String.format("%sYou are %s in ModMode %s(took %d ms, %.2f ticks)",
+                        ChatColor.RED,
+                        enteringModMode ? "now" : "no longer",
+                        ChatColor.GRAY,
+                        duration,
+                        (double) duration/50));
+                    log("Task took " + duration + " ms.");
                 });
             });
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Sets the player's current vanish state.
      *
      * @param player the player.
-     * @param vanishing true to vanish; false to unvanish.
+     * @param isVanishing true to vanish; false to unvanish.
      */
-    void setVanished(Player player, boolean vanishing) {
-        for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
-            if (Permissions.isAdmin(player)) {
-                if (!Permissions.isAdmin(otherPlayer)) {
-                    if (vanishing) {
-                        otherPlayer.hidePlayer(this, player);
-                    } else {
-                        otherPlayer.showPlayer(this, player);
-                    }
-                }
-            } else {
-                if (!Permissions.isAdmin(otherPlayer)) {
-                    if (vanishing) {
-                        otherPlayer.hidePlayer(this, player);
-                    } else {
-                        otherPlayer.showPlayer(this, player);
-                    }
-                }
-            }
-        }
-        if (vanishing) {
+    void setVanished(Player player, boolean isVanishing) {
+        Bukkit.getOnlinePlayers()
+              .stream()
+              .filter((otherPlayer) -> otherPlayer != player)
+              .forEach((otherPlayer) -> {
+                  if (!isVanishing) {
+                      otherPlayer.showPlayer(this, player);
+                  } else if (!this.isModMode(otherPlayer) && !Permissions.isAdmin(otherPlayer)) {
+                      otherPlayer.hidePlayer(this, player);
+                  }
+              });
+        if (isVanishing) {
             VANISHED.add(player.getUniqueId());
         } else {
             VANISHED.remove(player.getUniqueId());
         }
-        NERDBOARD.reconcilePlayerWithVanishState(player);
+        ScoreboardManager.reconcilePlayerWithVanishState(player);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Return true if the player is currently in ModMode.
      *
@@ -234,7 +180,6 @@ public class ModMode extends JavaPlugin {
         return MODMODE.contains(player.getUniqueId());
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Returns true if the player is in ModMode *or* is vanished, i.e. in a
      * transcendental state.
@@ -246,7 +191,6 @@ public class ModMode extends JavaPlugin {
         return player != null && (this.isModMode(player) || this.isVanished(player));
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Returns true if the given player is vanished.
      *
@@ -257,7 +201,6 @@ public class ModMode extends JavaPlugin {
         return player != null && VANISHED.contains(player.getUniqueId());
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Restore flight ability if in ModMode or creative game mode.
      *
@@ -268,7 +211,6 @@ public class ModMode extends JavaPlugin {
         player.setAllowFlight((isInModMode && CONFIG.ALLOW_FLIGHT) || player.getGameMode() == GameMode.CREATIVE);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Run all of the commands in the List of Strings.
      *
@@ -291,7 +233,6 @@ public class ModMode extends JavaPlugin {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * A logging method used instead of {@link java.util.logging.Logger} to
      * faciliate prefix coloring.
@@ -302,7 +243,6 @@ public class ModMode extends JavaPlugin {
         System.out.println(PREFIX + msg);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * This plugin's prefix as a string; for logging.
      */
@@ -312,4 +252,4 @@ public class ModMode extends JavaPlugin {
         ChatColor.DARK_GRAY,
         ChatColor.RESET);
 
-} // ModMode
+}

@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-// ------------------------------------------------------------------------
 /**
  * Handles and exposes this plugin's configuration.
  */
@@ -57,7 +56,6 @@ class Configuration {
      */
     private final HashSet<UUID> LOGGED_OUT_VANISHED = new HashSet<>();
 
-    // ------------------------------------------------------------------------
     /**
      * Constructor.
      */
@@ -71,7 +69,6 @@ class Configuration {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Load the configuration.
      */
@@ -110,7 +107,6 @@ class Configuration {
         AFTER_DEACTIVATION_COMMANDS = getCommandList("commands.deactivate.after");
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Save the configuration.
      */
@@ -127,7 +123,6 @@ class Configuration {
         ModMode.PLUGIN.saveConfig();
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Returns the current mod kit as a map from inventory index to ItemStack.
      *
@@ -169,7 +164,6 @@ class Configuration {
         SUPPRESSED_JOIN_MESSAGES.put(player.getUniqueId(), message);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Returns true if the given player logged out while vanished.
      *
@@ -180,7 +174,6 @@ class Configuration {
         return LOGGED_OUT_VANISHED.contains(player.getUniqueId());
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Sets the player's logged-out-vanished state to the given state.
      *

@@ -8,13 +8,11 @@ import org.bukkit.event.Listener;
 
 import java.util.UUID;
 
-// ------------------------------------------------------------------------
 /**
  * The LogBlock event-handling class.
  */
 public class LogBlockListener implements Listener {
 
-    // ------------------------------------------------------------------------
     /**
      * Constructor.
      */
@@ -22,7 +20,6 @@ public class LogBlockListener implements Listener {
         ModMode.PLUGIN.getServer().getPluginManager().registerEvents(this, ModMode.PLUGIN);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Ensures edits made by players in ModMode are logged with that player's
      * ModMode name.
@@ -43,7 +40,6 @@ public class LogBlockListener implements Listener {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Returns a "clean" ModMode name for the given player by prepending the
      * player's name with "modmode_".
@@ -55,4 +51,4 @@ public class LogBlockListener implements Listener {
         return "modmode_" + player.getName();
     }
 
-} // LogBlockListener
+}

@@ -15,13 +15,11 @@ import org.bukkit.event.player.*;
 
 import static nu.nerd.modmode.ModMode.CONFIG;
 
-// ------------------------------------------------------------------------
 /**
  * The plugin's main event-handling class.
  */
 public class ModModeListener implements Listener {
 
-    // ------------------------------------------------------------------------
     /**
      * Constructor.
      */
@@ -29,7 +27,6 @@ public class ModModeListener implements Listener {
         Bukkit.getPluginManager().registerEvents(this, ModMode.PLUGIN);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Facilitates the persistence of ModMode state across logins.
      */
@@ -48,10 +45,9 @@ public class ModModeListener implements Listener {
             }
             ModMode.PLUGIN.restoreFlight(player, inModMode);
         }
-        ModMode.NERDBOARD.reconcilePlayerWithVanishState(player);
+        ScoreboardManager.reconcilePlayerWithVanishState(player);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * In order for ModMode.PLUGIN.isVanished() to return the correct result,
      * this event must be processed before VanishNoPacket handles it, hence the
@@ -75,15 +71,13 @@ public class ModModeListener implements Listener {
     @EventHandler
     public void onPlayerPickupItem(EntityPickupItemEvent e) {
         Entity entity = e.getEntity();
-        if (entity instanceof Player) {
-            Player player = (Player) entity;
+        if (entity instanceof Player player) {
             if (ModMode.PLUGIN.isVanished(player)) {
                 e.setCancelled(true);
             }
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Disallows vanished players and players in ModMode from dropping items.
      */
@@ -94,38 +88,34 @@ public class ModModeListener implements Listener {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Disallows entities from targeting vanished players and players in
      * ModMode, e.g. hostile mobs, parrots.
      */
     @EventHandler
     public void onEntityTarget(EntityTargetEvent e) {
-        if (e.getTarget() instanceof Player) {
-            Player player = (Player) e.getTarget();
+        if (e.getTarget() instanceof Player player) {
             if (ModMode.PLUGIN.isTranscendental(player)) {
                 e.setCancelled(true);
             }
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Disallows vanished players and players in ModMode from damaging other
      * players.
      */
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player) {
-            Player victim = (Player) event.getEntity();
+        if (event.getEntity() instanceof Player victim) {
             if (ModMode.PLUGIN.isTranscendental(victim)) {
                 // Extinguish view-obscuring fires.
                 victim.setFireTicks(0);
+                event.setCancelled(true);
             }
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Updates the player's WorldeditCache and allow-flight status upon
      * changing worlds.
@@ -141,7 +131,6 @@ public class ModModeListener implements Listener {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Restores a player's flight ability upon changing game modes.
      */
@@ -154,14 +143,12 @@ public class ModModeListener implements Listener {
         });
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Prevents the depletion of hunger level for players in ModMode.
      */
     @EventHandler(ignoreCancelled = true)
     public void onFoodLevelChange(FoodLevelChangeEvent event) {
-        if (event.getEntity() instanceof Player) {
-            Player player = (Player) event.getEntity();
+        if (event.getEntity() instanceof Player player) {
             if (ModMode.PLUGIN.isModMode(player)) {
                 if (player.getFoodLevel() != 20) {
                     player.setFoodLevel(20);
@@ -171,4 +158,4 @@ public class ModModeListener implements Listener {
         }
     }
 
-} // ModModeListener
+}

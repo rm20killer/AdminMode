@@ -25,7 +25,6 @@ public class Commands implements TabExecutor {
         Bukkit.getPluginCommand("vanish").setPermission(Permissions.VANISH);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * @see CommandExecutor#onCommand(CommandSender, Command, String, String[]).
      */
@@ -91,7 +90,6 @@ public class Commands implements TabExecutor {
 
     } // onCommand
 
-    // ------------------------------------------------------------------------
     /**
      * Handle /modmode [save|reload] both for players in-game and the console.
      *
@@ -120,7 +118,6 @@ public class Commands implements TabExecutor {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Return true if the CommandSender is a Player (in-game).
      *
@@ -143,7 +140,6 @@ public class Commands implements TabExecutor {
         return null;
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Sends a list of currently-vanished players to the given CommandSender.
      *

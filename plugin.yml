@@ -1,13 +1,10 @@
 name: ModMode
 version: ${project.version}
 description: ${project.description}
-
-authors: [Travis Watkins, Deaygo]
-website: ${project.url}
-
+authors: [ bermudalocket ]
 main: nu.nerd.modmode.ModMode
-softdepend: [TagAPI, LogBlock, NerdPoints]
-depend: [LuckPerms, NerdBoard]
+softdepend: [ LogBlock ]
+depend: [LuckPerms]
 
 api-version: 1.13
 

@@ -1,9 +1,11 @@
 package nu.nerd.modmode;
 
-import me.lucko.luckperms.api.LuckPermsApi;
-import me.lucko.luckperms.api.Track;
-import me.lucko.luckperms.api.User;
-import me.lucko.luckperms.api.context.ContextSet;
+
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.context.ImmutableContextSet;
+import net.luckperms.api.model.user.User;
+import net.luckperms.api.track.Track;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -11,28 +13,16 @@ import java.util.concurrent.CompletableFuture;
 
 public class Permissions {
 
-    private final LuckPermsApi API;
+    private static final LuckPerms API = LuckPermsProvider.get();
 
-    private static Track MODMODE_TRACK;
-    private static Track FOREIGN_SERVER_ADMINS_TRACK;
+    private static final Track MODMODE_TRACK = API.getTrackManager().getTrack("modmode-track");
 
-    Permissions(LuckPermsApi api) {
-        API = api;
-        MODMODE_TRACK = getTrack("modmode-track");
-        FOREIGN_SERVER_ADMINS_TRACK = getTrack("foreign-server-admins-modmode-track");
-        if (MODMODE_TRACK == null) {
-            ModMode.log("Track modmode-track could not be found.");
-        }
-        if (FOREIGN_SERVER_ADMINS_TRACK == null) {
-            ModMode.log("Track foreign-server-admins-modmode-track could not be found.");
-        }
-    }
+    private Permissions() { }
 
     public static boolean canModMode(Player player) {
         return player.hasPermission(TOGGLE);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Return true if the player has Admin permissions.
      *
@@ -46,59 +36,29 @@ public class Permissions {
         return player.hasPermission(ADMIN);
     }
 
-    // ------------------------------------------------------------------------
-    /**
-     * Gets the Track with the given name, or null if it does not exist.
-     * According to the LuckPerms documentation, tracks are always kept loaded.
-     *
-     * @param name the name of the Track.
-     * @return the Track, or null if it does not exist.
-     */
-    private Track getTrack(String name) {
-        return API.getTrack(name);
-    }
-
-    // ------------------------------------------------------------------------
-    /**
-     * Returns the modmode track if the player is a moderator, or the foreign
-     * server admins modmode track if the player is a foreign server admin.
-     *
-     * @param player the player.
-     * @return the modmode track if the player is a moderator, or the foreign
-     * server admins modmode track if the player is a foreign server admin.
-     */
-    private Track getAppropriateTrack(Player player) {
-        if (player.hasPermission("group.foreignserveradmins")) {
-            return FOREIGN_SERVER_ADMINS_TRACK;
-        } else {
-            return MODMODE_TRACK;
-        }
-    }
-
-    private CompletableFuture<User> getUser(Player player) {
+    private static CompletableFuture<User> getUser(Player player) {
         if (player == null) {
             return null;
         }
         UUID uuid = player.getUniqueId();
-        if (API.isUserLoaded(uuid)) {
-            return CompletableFuture.completedFuture(API.getUser(uuid));
+        if (API.getUserManager().isLoaded(uuid)) {
+            return CompletableFuture.completedFuture(API.getUserManager().getUser(uuid));
         } else {
             return API.getUserManager().loadUser(uuid);
         }
     }
 
-    CompletableFuture<Void> updatePermissions(Player player, boolean promote) {
+    static CompletableFuture<Void> updatePermissions(Player player, boolean promote) {
         CompletableFuture<User> futureUser = getUser(player);
         if (isAdmin(player)) {
             return CompletableFuture.completedFuture(null);
         }
         return futureUser.thenComposeAsync(user -> CompletableFuture.supplyAsync(() -> {
             if (user != null && !isAdmin(player)) {
-                Track track = getAppropriateTrack(player);
                 if (promote) {
-                    track.promote(user, ContextSet.empty());
+                    MODMODE_TRACK.promote(user, ImmutableContextSet.empty());
                 } else {
-                    track.demote(user, ContextSet.empty());
+                    MODMODE_TRACK.demote(user, ImmutableContextSet.empty());
                 }
                 return user;
             }

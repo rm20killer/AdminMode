@@ -12,7 +12,6 @@ import java.io.File;
 
 public class PlayerState {
 
-    // ------------------------------------------------------------------------
     /**
      * Return the File used to store the player's normal or ModMode state.
      *
@@ -28,7 +27,6 @@ public class PlayerState {
         return new File(playersDir, fileName);
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Save the player's data to a YAML configuration file.
      *
@@ -88,7 +86,6 @@ public class PlayerState {
         }
     }
 
-    // ------------------------------------------------------------------------
     /**
      * Load the player's data from a YAML configuration file.
      *
