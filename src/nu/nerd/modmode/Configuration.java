@@ -2,15 +2,13 @@ package nu.nerd.modmode;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.Objects;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,7 +20,7 @@ class Configuration {
     /**
      * The configuration.
      */
-    private FileConfiguration _config;
+    private FileConfiguration config;
 
     /**
      * If true, player data loads and saves are logged to the console.
@@ -36,35 +34,19 @@ class Configuration {
 
     public boolean ALLOW_COLLISIONS;
 
-    private final HashMap<UUID, String> SUPPRESSED_JOIN_MESSAGES = new HashMap<>();
-
     private final HashMap<Integer, ItemStack> MOD_KIT = new HashMap<>();
-
-    /**
-     * For Moderators in ModMode, this is persistent storage for their vanish
-     * state when they log out. Moderators out of ModMode are assumed to always
-     * be visible.
-     *
-     * For Admins who can vanish without transitioning into ModMode, this
-     * variable stores their vanish state between logins only when not in
-     * ModMode. If they log out in ModMode, they are re-vanished automatically
-     * when they log in. When they leave ModMode, their vanish state is set
-     * according to membership in this set.
-     *
-     * This is NOT the set of currently vanished players, which is instead
-     * maintained by the VanishNoPacket plugin.
-     */
-    private final HashSet<UUID> LOGGED_OUT_VANISHED = new HashSet<>();
 
     /**
      * Constructor.
      */
     public Configuration() {
         reload();
-        for (String uuidString : _config.getStringList("modmode-cache")) {
-            UUID uuid = asUUID(uuidString);
-            if (uuid != null) {
+        for (String uuidString : config.getStringList("modmode-cache")) {
+            try {
+                var uuid = UUID.fromString(uuidString);
                 ModMode.MODMODE.add(uuid);
+            } catch (IllegalArgumentException e) {
+                ModMode.log("Failed to deserialize a UUID in the modmode-cache.");
             }
         }
     }
@@ -75,25 +57,19 @@ class Configuration {
     void reload() {
         ModMode.PLUGIN.saveDefaultConfig();
         ModMode.PLUGIN.reloadConfig();
-        _config = ModMode.PLUGIN.getConfig();
+        config = ModMode.PLUGIN.getConfig();
 
-        DEBUG = _config.getBoolean("debug.playerdata");
-        ALLOW_FLIGHT = _config.getBoolean("allow.flight", true);
-        ALLOW_COLLISIONS = _config.getBoolean("allow.collisions", true);
-
-        LOGGED_OUT_VANISHED.clear();
-        _config.getStringList("logged-out-vanished").stream()
-            .map(Configuration::asUUID)
-            .filter(Objects::nonNull)
-            .forEach(LOGGED_OUT_VANISHED::add);
+        DEBUG = config.getBoolean("debug.playerdata");
+        ALLOW_FLIGHT = config.getBoolean("allow.flight", true);
+        ALLOW_COLLISIONS = config.getBoolean("allow.collisions", true);
 
         MOD_KIT.clear();
-        ConfigurationSection modKit = _config.getConfigurationSection("mod-kit");
+        ConfigurationSection modKit = config.getConfigurationSection("mod-kit");
         if (modKit != null) {
             for (String key : modKit.getKeys(false)) {
                 try {
                     Integer i = Integer.valueOf(key);
-                    ItemStack item = _config.getItemStack("mod-kit." + i, null);
+                    ItemStack item = config.getItemStack("mod-kit." + i, null);
                     MOD_KIT.put(i, item);
                 } catch (Exception e) {
                     ModMode.log("Bad entry in mod-kit in config.yml: " + key);
@@ -111,14 +87,11 @@ class Configuration {
      * Save the configuration.
      */
     void save() {
-        _config.set("logged-out-vanished", new ArrayList<>(
-            LOGGED_OUT_VANISHED.stream().map(UUID::toString).collect(Collectors.toList()))
-        );
-        _config.set("modmode-cache", new ArrayList<>(
+        config.set("modmode-cache", new ArrayList<>(
             ModMode.MODMODE.stream().map(UUID::toString).collect(Collectors.toList())
         ));
         for (Integer i : MOD_KIT.keySet()) {
-            _config.set("mod-kit." + i, MOD_KIT.get(i));
+            config.set("mod-kit." + i, MOD_KIT.get(i));
         }
         ModMode.PLUGIN.saveConfig();
     }
@@ -128,7 +101,7 @@ class Configuration {
      *
      * @return the current mod kit.
      */
-    public HashMap<Integer, ItemStack> getModKit() {
+    public Map<Integer, ItemStack> getModKit() {
         return new HashMap<>(MOD_KIT);
     }
 
@@ -140,52 +113,8 @@ class Configuration {
         }
     }
 
-    private static UUID asUUID(String uuidString) {
-        try {
-            return UUID.fromString(uuidString);
-        } catch (IllegalArgumentException e) {
-            ModMode.log("Error: bad UUID in config.yml (" + uuidString +").");
-            return null;
-        }
-    }
-
     private LinkedHashSet<String> getCommandList(String key) {
-        return new LinkedHashSet<>(_config.getStringList(key));
-    }
-
-    public String getJoinMessage(Player player) {
-        UUID uuid = player.getUniqueId();
-        String message = SUPPRESSED_JOIN_MESSAGES.get(uuid);
-        SUPPRESSED_JOIN_MESSAGES.remove(uuid);
-        return message;
-    }
-
-    public void suppressJoinMessage(Player player, String message) {
-        SUPPRESSED_JOIN_MESSAGES.put(player.getUniqueId(), message);
-    }
-
-    /**
-     * Returns true if the given player logged out while vanished.
-     *
-     * @param player the player.
-     * @return true if the given player logged out while vanished.
-     */
-    public boolean loggedOutVanished(Player player) {
-        return LOGGED_OUT_VANISHED.contains(player.getUniqueId());
-    }
-
-    /**
-     * Sets the player's logged-out-vanished state to the given state.
-     *
-     * @param player the player.
-     * @param state the new state.
-     */
-    public void setLoggedOutVanished(Player player, boolean state) {
-        if (state) {
-            LOGGED_OUT_VANISHED.add(player.getUniqueId());
-        } else {
-            LOGGED_OUT_VANISHED.remove(player.getUniqueId());
-        }
+        return new LinkedHashSet<>(config.getStringList(key));
     }
 
     /**

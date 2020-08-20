@@ -2,16 +2,17 @@ package nu.nerd.modmode;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.bukkit.event.player.*;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import static nu.nerd.modmode.ModMode.CONFIG;
 
@@ -31,50 +32,19 @@ public class ModModeListener implements Listener {
      * Facilitates the persistence of ModMode state across logins.
      */
     @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
+    public static void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (Permissions.canModMode(player)) {
-            boolean isAdmin = Permissions.isAdmin(player);
-            boolean inModMode = ModMode.PLUGIN.isModMode(player);
-            boolean loggedOutVanished = ModMode.CONFIG.loggedOutVanished(player);
-            boolean vanished = isAdmin ? loggedOutVanished : inModMode && loggedOutVanished;
-            if (vanished) {
-                ModMode.CONFIG.suppressJoinMessage(player, event.getJoinMessage());
-                event.setJoinMessage("");
-                ModMode.PLUGIN.setVanished(player, true);
-            }
-            ModMode.PLUGIN.restoreFlight(player, inModMode);
-        }
-        ScoreboardManager.reconcilePlayerWithVanishState(player);
-    }
-
-    /**
-     * In order for ModMode.PLUGIN.isVanished() to return the correct result,
-     * this event must be processed before VanishNoPacket handles it, hence the
-     * low priority.
-     */
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        CONFIG.getJoinMessage(player); // removes it
-        boolean isVanished = ModMode.PLUGIN.isVanished(player);
-        if (isVanished) {
-            event.setQuitMessage(null);
-            boolean inModMode = ModMode.PLUGIN.isModMode(player);
-            boolean isAdmin = player.hasPermission(Permissions.ADMIN);
-            if (isAdmin || inModMode) {
-                CONFIG.setLoggedOutVanished(player, true);
-            }
+        if (ModMode.isModMode(player)) {
+            ModMode.PLUGIN.setVanished(player, true);
+            ModMode.PLUGIN.restoreFlight(player, true);
+            ScoreboardManager.reconcilePlayerWithVanishState(player);
         }
     }
 
     @EventHandler
     public void onPlayerPickupItem(EntityPickupItemEvent e) {
-        Entity entity = e.getEntity();
-        if (entity instanceof Player player) {
-            if (ModMode.PLUGIN.isVanished(player)) {
-                e.setCancelled(true);
-            }
+        if (e.getEntity() instanceof Player player && ModMode.PLUGIN.isVanished(player)) {
+            e.setCancelled(true);
         }
     }
 
@@ -83,7 +53,7 @@ public class ModModeListener implements Listener {
      */
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent e) {
-        if (ModMode.PLUGIN.isTranscendental(e.getPlayer())) {
+        if (ModMode.PLUGIN.isVanished(e.getPlayer())) {
             e.setCancelled(true);
         }
     }
@@ -94,10 +64,8 @@ public class ModModeListener implements Listener {
      */
     @EventHandler
     public void onEntityTarget(EntityTargetEvent e) {
-        if (e.getTarget() instanceof Player player) {
-            if (ModMode.PLUGIN.isTranscendental(player)) {
-                e.setCancelled(true);
-            }
+        if (e.getTarget() instanceof Player player && ModMode.PLUGIN.isTranscendental(player)) {
+            e.setCancelled(true);
         }
     }
 
@@ -121,11 +89,11 @@ public class ModModeListener implements Listener {
      * changing worlds.
      */
     @EventHandler(ignoreCancelled = true)
-    public void onPlayerChangeWorld(PlayerChangedWorldEvent event) {
+    public static void onPlayerChangeWorld(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
         if (player.getGameMode() != GameMode.CREATIVE) {
             if (CONFIG.ALLOW_FLIGHT) {
-                boolean flightState = ModMode.PLUGIN.isModMode(player);
+                boolean flightState = ModMode.isModMode(player);
                 player.setAllowFlight(flightState);
             }
         }
@@ -135,10 +103,10 @@ public class ModModeListener implements Listener {
      * Restores a player's flight ability upon changing game modes.
      */
     @EventHandler(ignoreCancelled = true)
-    public void onPlayerGameModeChange(final PlayerGameModeChangeEvent event) {
+    public static void onPlayerGameModeChange(final PlayerGameModeChangeEvent event) {
         Player player = event.getPlayer();
         Bukkit.getScheduler().runTask(ModMode.PLUGIN, () -> {
-            boolean flightState = ModMode.PLUGIN.isModMode(player);
+            boolean flightState = ModMode.isModMode(player);
             ModMode.PLUGIN.restoreFlight(player, flightState);
         });
     }
@@ -147,9 +115,9 @@ public class ModModeListener implements Listener {
      * Prevents the depletion of hunger level for players in ModMode.
      */
     @EventHandler(ignoreCancelled = true)
-    public void onFoodLevelChange(FoodLevelChangeEvent event) {
+    public static void onFoodLevelChange(FoodLevelChangeEvent event) {
         if (event.getEntity() instanceof Player player) {
-            if (ModMode.PLUGIN.isModMode(player)) {
+            if (ModMode.isModMode(player)) {
                 if (player.getFoodLevel() != 20) {
                     player.setFoodLevel(20);
                 }

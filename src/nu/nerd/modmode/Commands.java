@@ -10,8 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -22,12 +22,9 @@ public class Commands implements TabExecutor {
         Bukkit.getPluginCommand("unvanish").setExecutor(this);
         Bukkit.getPluginCommand("vanishlist").setExecutor(this);
         Bukkit.getPluginCommand("vanish").setExecutor(this);
-        Bukkit.getPluginCommand("vanish").setPermission(Permissions.VANISH);
+        Bukkit.getPluginCommand("vanish").setPermission(ModMode.Permissions.VANISH.node);
     }
 
-    /**
-     * @see CommandExecutor#onCommand(CommandSender, Command, String, String[]).
-     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String name, String[] args) {
         if (command.getName().equalsIgnoreCase("vanishlist")) {
@@ -43,7 +40,7 @@ public class Commands implements TabExecutor {
         if (command.getName().equalsIgnoreCase("modmode")) {
             if (args.length == 1) {
                 if (args[0].equalsIgnoreCase("kit")) {
-                    HashMap<Integer, ItemStack> kit = ModMode.CONFIG.getModKit();
+                    Map<Integer, ItemStack> kit = ModMode.CONFIG.getModKit();
                     for (Integer i : kit.keySet()) {
                         PlayerInventory inventory = player.getInventory();
                         ItemStack item = inventory.getItem(i);
@@ -59,7 +56,7 @@ public class Commands implements TabExecutor {
                     }
                     return true;
                 } else if (args[0].equalsIgnoreCase("savekit")) {
-                    if (player.hasPermission(Permissions.OP)) {
+                    if (ModMode.Permissions.isAdmin(player)) {
                         ModMode.CONFIG.saveModKit(player.getInventory());
                         player.sendMessage(ChatColor.RED + "Mod kit saved.");
                     }
@@ -102,7 +99,7 @@ public class Commands implements TabExecutor {
                 ModMode.PLUGIN.toggleModMode((Player) sender);
             }
         } else if (args.length == 1 && (args[0].equalsIgnoreCase("save") || args[0].equalsIgnoreCase("reload"))) {
-            if (!sender.hasPermission(Permissions.OP)) {
+            if (sender instanceof Player player && ModMode.Permissions.isAdmin(player)) {
                 sender.sendMessage(ChatColor.RED + "You don't have permission to use /modmode op commands.");
                 return;
             }
@@ -149,10 +146,11 @@ public class Commands implements TabExecutor {
         if (ModMode.VANISHED.isEmpty()) {
             sender.sendMessage(ChatColor.RED + "All players are visible!");
         } else {
-            String vanishList = ModMode.VANISHED.stream().map(Bukkit::getPlayer)
-                .filter(Objects::nonNull)
-                .map(Player::getName)
-                .collect(Collectors.joining(", "));
+            String vanishList = ModMode.VANISHED.stream()
+                                                .map(Bukkit::getPlayer)
+                                                .filter(Objects::nonNull)
+                                                .map(Player::getName)
+                                                .collect(Collectors.joining(", "));
             sender.sendMessage(ChatColor.RED + "Vanished players: " + vanishList);
         }
     }

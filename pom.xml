@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.bermudalocket</groupId>
     <artifactId>ModMode</artifactId>
-    <version>5.2</version>
+    <version>5.3.3</version>
     <packaging>jar</packaging>
     <name>ModMode</name>
     <description>Vanish and ModMode</description>
@@ -42,6 +42,11 @@
             <groupId>de.diddiz</groupId>
             <artifactId>logblock</artifactId>
             <version>1.16.1.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>19.0.0</version>
         </dependency>
     </dependencies>
 

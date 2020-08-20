@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Run Server" type="JarApplication">
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="nu.nerd.modmode.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="JAR_PATH" value="$PROJECT_DIR$/test/server/paper-131.jar" />
+    <option name="VM_PARAMETERS" value="--enable-preview -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC" />
+    <option name="PROGRAM_PARAMETERS" value="--nogui" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test/server" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="ALTERNATIVE_JRE_PATH" value="14.0.2+12" />
+    <method v="2">
+      <option name="Maven.BeforeRunTask" enabled="true" file="$PROJECT_DIR$/pom.xml" goal="package" />
+      <option name="ToolBeforeRunTask" enabled="true" actionId="Tool_External Tools_Copy Plugin" />
+    </method>
+  </configuration>
+</component>

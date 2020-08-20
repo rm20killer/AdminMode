@@ -64,14 +64,9 @@ final class ScoreboardManager {
      */
     @SuppressWarnings("deprecation")
     public static void reconcilePlayerWithVanishState(Player player) {
-        boolean inModMode = ModMode.PLUGIN.isModMode(player);
-        boolean isVanished = ModMode.PLUGIN.isVanished(player);
-        Team team;
-        if (inModMode) {
-            team = modModeTeam;
-        } else {
-            team = isVanished ? vanishedTeam : defaultTeam;
-        }
+        var inModMode = ModMode.isModMode(player);
+        var isVanished = ModMode.PLUGIN.isVanished(player);
+        var team = inModMode ? modModeTeam : (isVanished ? vanishedTeam : defaultTeam);
         team.addPlayer(player);
         if (player.getScoreboard() != SCOREBOARD) {
             player.setScoreboard(SCOREBOARD);

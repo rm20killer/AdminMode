@@ -1,14 +1,17 @@
 package nu.nerd.modmode;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 
 import java.io.File;
+import java.util.concurrent.CompletableFuture;
 
 public class PlayerState {
 
@@ -114,7 +117,22 @@ public class PlayerState {
                 double z = config.getDouble("z");
                 float pitch = (float) config.getDouble("pitch");
                 float yaw = (float) config.getDouble("yaw");
-                player.teleport(new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch));
+
+                Bukkit.getScheduler().runTask(ModMode.PLUGIN, () -> {
+                    var chunkLoadStart = System.currentTimeMillis();
+                    player.sendMessage(ChatColor.GRAY + "Requested chunks from server. Waiting...");
+                    CompletableFuture<Boolean> future = new CompletableFuture<>();
+                    var loc = new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch);
+                    loc.getWorld()
+                       .getChunkAtAsync(loc)
+                       .thenAccept(chunk -> future.complete(player.teleport(loc, PlayerTeleportEvent.TeleportCause.PLUGIN)))
+                       .exceptionally(ex -> { future.completeExceptionally(ex); return null; })
+                       .thenRunAsync(() -> {
+                           var chunkLoadTime = System.currentTimeMillis() - chunkLoadStart;
+                           var msg = String.format("%sSuccessfully loaded chunks in %d ms (%.2f ticks).", ChatColor.GRAY, chunkLoadTime, (double) chunkLoadTime / 50);
+                           player.sendMessage(msg);
+                       });
+                });
             }
 
             player.getEnderChest().clear();

@@ -13,10 +13,11 @@ import java.util.UUID;
  */
 public class LogBlockListener implements Listener {
 
-    /**
-     * Constructor.
-     */
-    LogBlockListener() {
+    public static LogBlockListener INSTANCE = new LogBlockListener();
+
+    private LogBlockListener() { }
+
+    public void startListening() {
         ModMode.PLUGIN.getServer().getPluginManager().registerEvents(this, ModMode.PLUGIN);
     }
 
@@ -25,7 +26,7 @@ public class LogBlockListener implements Listener {
      * ModMode name.
      */
     @EventHandler
-    public void onLogBlockPreLogEvent(BlockChangePreLogEvent event) {
+    public static void onLogBlockPreLogEvent(BlockChangePreLogEvent event) {
         Player player;
         try {
             UUID actorUUID = UUID.fromString(event.getOwnerActor().getUUID());
@@ -34,21 +35,10 @@ public class LogBlockListener implements Listener {
             // probably liquid flow or something
             return;
         }
-        if (player != null && ModMode.PLUGIN.isModMode(player)) {
-            Actor actor = new Actor(getCleanModModeName(player));
+        if (player != null && ModMode.isModMode(player)) {
+            Actor actor = new Actor("modmode_" + player.getName());
             event.setOwner(actor);
         }
-    }
-
-    /**
-     * Returns a "clean" ModMode name for the given player by prepending the
-     * player's name with "modmode_".
-     *
-     * @param player the player.
-     * @return the player's ModMode name.
-     */
-    private static String getCleanModModeName(Player player) {
-        return "modmode_" + player.getName();
     }
 
 }
