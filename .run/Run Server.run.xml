@@ -11,7 +11,7 @@
     <option name="PROGRAM_PARAMETERS" value="--nogui" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test/server" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="ALTERNATIVE_JRE_PATH" value="14.0.2+12" />
+    <option name="ALTERNATIVE_JRE_PATH" value="$USER_HOME$/Library/Java/JavaVirtualMachines/adopt-openjdk-16.0.1/Contents/Home" />
     <method v="2">
       <option name="Maven.BeforeRunTask" enabled="true" file="$PROJECT_DIR$/pom.xml" goal="package" />
       <option name="ToolBeforeRunTask" enabled="true" actionId="Tool_External Tools_Copy Plugin" />

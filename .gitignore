@@ -6,3 +6,5 @@ ModMode.iml
 .java-version
 logs/
 test/
+.DS_Store
+.run/Run Server.run.xml
