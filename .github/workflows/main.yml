@@ -16,7 +16,7 @@ jobs:
       uses: actions/setup-java@v2.3.0
       with:
         java-version: 17
-        distribution: adopt-hotspot
+        distribution: temurin
     - name: maven
       run: mvn clean package
     - uses: actions/upload-artifact@v2.2.4
