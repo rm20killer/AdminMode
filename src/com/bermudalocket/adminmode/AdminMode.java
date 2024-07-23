@@ -52,18 +52,17 @@ public class AdminMode extends JavaPlugin implements Listener {
         }
 
         Bukkit.getScheduler().runTaskTimer(this, () ->
-            Bukkit.getOnlinePlayers()
-                  .stream()
-                  .filter(p -> p.hasPermission("group.adminmode") || p.hasPermission("group.modmode"))
-                  .forEach(player -> {
-                      var coloredDisplayName = Component.text(player.getName()).color(TextColor.color(0, 255, 0));
-                      player.displayName(coloredDisplayName);
+                        Bukkit.getOnlinePlayers()
+                                .stream()
+                                .filter(p -> p.hasPermission("group.adminmode") || p.hasPermission("group.modmode"))
+                                .forEach(player -> {
+                                    var coloredDisplayName = Component.text(player.getName()).color(TextColor.color(0, 255, 0));
+                                    player.displayName(coloredDisplayName);
 
-                      var group = (player.hasPermission("group.adminmode")) ? "AdminMode" : "ModMode";
-                      var actionBarMsg = Component.text("You are currently in " + group).color(TextColor.color(0, 255, 0));
-                      player.sendActionBar(actionBarMsg);
-                  })
-        , 1, 20);
+                                    var actionBarMsg = Component.text("You are currently in StaffMode").color(TextColor.color(0, 255, 0));
+                                    player.sendActionBar(actionBarMsg);
+                                })
+                , 1, 20);
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player a : Bukkit.getOnlinePlayers()) {
@@ -79,10 +78,7 @@ public class AdminMode extends JavaPlugin implements Listener {
     }
 
     private static boolean canPlayerASeePlayerB(Player a, Player b) {
-        if (a.hasPermission("group.adminmode") || a.hasPermission("group.modmode")) {
-            return true;
-        }
-        return !(b.hasPermission("group.adminmode") || b.hasPermission("group.modmode"));
+        return true;
     }
 
     void toggle(Player player) {
@@ -99,60 +95,62 @@ public class AdminMode extends JavaPlugin implements Listener {
         }
 
         lp.getUserManager()
-          .loadUser(player.getUniqueId())
-          .thenApply(user -> {
-              var context = lp.getContextManager().getContext(user);
-              if (context.isPresent()) {
-                  var server = context.get().getValues("server").stream().findFirst();
-                  var contextSet = server.map(s -> ImmutableContextSet.of("server", s)).orElseGet(ImmutableContextSet::empty);
-                  Result result = enteringModMode ? track.promote(user, contextSet) : track.demote(user, contextSet);
-                  LuckPermsProvider.get().getUserManager().saveUser(user);
-                  return result;
-              }
-              return null;
-          }).thenAccept(result -> {
-                if (result == null) {
-                    player.sendMessage(ChatColor.RED + "There was an error obtaining your context from LuckPerms.");
-                    return;
-                }
-                if (!result.wasSuccessful()) {
-                    player.sendMessage(ChatColor.RED + "Your permissions change was not successful.");
-
-                    String msg, msg2;
-                    if (result instanceof PromotionResult promotionResult) {
-                        msg = "- direction: " + promotionResult.getGroupFrom().orElse("EMPTY") + " -> " + promotionResult.getGroupTo().orElse("EMPTY");
-                        msg2 = "- status: " + promotionResult.getStatus().name();
-                    } else if (result instanceof DemotionResult demotionResult) {
-                        msg = "- direction: " + demotionResult.getGroupFrom().orElse("EMPTY") + " -> " + demotionResult.getGroupTo().orElse("EMPTY");
-                        msg2 = "- status: " + demotionResult.getStatus().name();
-                    } else {
-                        msg = "Error:";
-                        msg2 = "Could not determine result type.";
+                .loadUser(player.getUniqueId())
+                .thenApply(user -> {
+                    var context = lp.getContextManager().getContext(user);
+                    if (context.isPresent()) {
+                        var server = context.get().getValues("server").stream().findFirst();
+                        var contextSet = server.map(s -> ImmutableContextSet.of("server", s)).orElseGet(ImmutableContextSet::empty);
+                        Result result = enteringModMode ? track.promote(user, contextSet) : track.demote(user, contextSet);
+                        LuckPermsProvider.get().getUserManager().saveUser(user);
+                        return result;
                     }
-                    player.sendMessage(ChatColor.RED + msg);
-                    player.sendMessage(ChatColor.RED + msg2);
-                }
-                Bukkit.getScheduler().runTask(this, () -> { // main thread
-                    // Save player data for the old ModMode state and load for the new.
-                    this.savePlayerData(player, !enteringModMode);
-                    this.loadPlayerData(player, enteringModMode);
-
-                    if (!enteringModMode && player.getGameMode() == GameMode.CREATIVE) {
-                        player.setGameMode(GameMode.SURVIVAL);
+                    return null;
+                }).thenAccept(result -> {
+                    if (result == null) {
+                        player.sendMessage(ChatColor.RED + "There was an error obtaining your context from LuckPerms.");
+                        return;
                     }
-                    this.restoreFlight(player);
+                    if (!result.wasSuccessful()) {
+                        player.sendMessage(ChatColor.RED + "Your permissions change was not successful.");
 
-                    long duration = System.currentTimeMillis() - timeStart;
-                    player.sendMessage(String.format("%sYou are %s in %s %s(took %d ms, %.2f ticks)",
-                                                     ChatColor.RED,
-                                                     enteringModMode ? "now" : "no longer",
-                                                     isAdmin ? "AdminMode" : "ModMode",
-                                                     ChatColor.GRAY,
-                                                     duration,
-                                                     (double) duration / 50));
-                    log("Task took " + duration + " ms.");
+                        String msg, msg2;
+                        if (result instanceof PromotionResult promotionResult) {
+                            msg = "- direction: " + promotionResult.getGroupFrom().orElse("EMPTY") + " -> " + promotionResult.getGroupTo().orElse("EMPTY");
+                            msg2 = "- status: " + promotionResult.getStatus().name();
+                        } else if (result instanceof DemotionResult demotionResult) {
+                            msg = "- direction: " + demotionResult.getGroupFrom().orElse("EMPTY") + " -> " + demotionResult.getGroupTo().orElse("EMPTY");
+                            msg2 = "- status: " + demotionResult.getStatus().name();
+                        } else {
+                            msg = "Error:";
+                            msg2 = "Could not determine result type.";
+                        }
+                        player.sendMessage(ChatColor.RED + msg);
+                        player.sendMessage(ChatColor.RED + msg2);
+                    }
+                    Bukkit.getScheduler().runTask(this, () -> { // main thread
+                        // Save player data for the old ModMode state and load for the new.
+                        this.savePlayerData(player, !enteringModMode);
+                        this.loadPlayerData(player, enteringModMode);
+
+                        if (!enteringModMode && player.getGameMode() == GameMode.CREATIVE) {
+                            player.setGameMode(GameMode.SURVIVAL);
+                        }
+                        if (!enteringModMode && player.getGameMode() == GameMode.SPECTATOR) {
+                            player.setGameMode(GameMode.SURVIVAL);
+                        }
+                        this.restoreFlight(player);
+
+                        long duration = System.currentTimeMillis() - timeStart;
+                        player.sendMessage(String.format("%sYou are %s in StaffMode %s(took %d ms, %.2f ticks)",
+                                ChatColor.RED,
+                                enteringModMode ? "now" : "no longer",
+                                ChatColor.GRAY,
+                                duration,
+                                (double) duration / 50));
+                        log("Task took " + duration + " ms.");
+                    });
                 });
-            });
     }
 
     private void restoreFlight(@NotNull Player player) {
@@ -244,10 +242,10 @@ public class AdminMode extends JavaPlugin implements Listener {
     }
 
     private static final String PREFIX = String.format("%s[%sModMode%s]%s",
-        ChatColor.DARK_GRAY,
-        ChatColor.GREEN,
-        ChatColor.DARK_GRAY,
-        ChatColor.RESET);
+            ChatColor.DARK_GRAY,
+            ChatColor.GREEN,
+            ChatColor.DARK_GRAY,
+            ChatColor.RESET);
 
     // - Player state
 
@@ -342,14 +340,14 @@ public class AdminMode extends JavaPlugin implements Listener {
                     CompletableFuture<Boolean> future = new CompletableFuture<>();
                     var loc = new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch);
                     loc.getWorld()
-                       .getChunkAtAsync(loc)
-                       .thenAccept(chunk -> future.complete(player.teleport(loc, PlayerTeleportEvent.TeleportCause.PLUGIN)))
-                       .exceptionally(ex -> { future.completeExceptionally(ex); return null; })
-                       .thenRunAsync(() -> {
-                           var chunkLoadTime = System.currentTimeMillis() - chunkLoadStart;
-                           var msg = String.format("%sSuccessfully loaded chunks in %d ms (%.2f ticks).", ChatColor.GRAY, chunkLoadTime, (double) chunkLoadTime / 50);
-                           player.sendMessage(msg);
-                       });
+                            .getChunkAtAsync(loc)
+                            .thenAccept(chunk -> future.complete(player.teleport(loc, PlayerTeleportEvent.TeleportCause.PLUGIN)))
+                            .exceptionally(ex -> { future.completeExceptionally(ex); return null; })
+                            .thenRunAsync(() -> {
+                                var chunkLoadTime = System.currentTimeMillis() - chunkLoadStart;
+                                var msg = String.format("%sSuccessfully loaded chunks in %d ms (%.2f ticks).", ChatColor.GRAY, chunkLoadTime, (double) chunkLoadTime / 50);
+                                player.sendMessage(msg);
+                            });
                 });
             }
 
