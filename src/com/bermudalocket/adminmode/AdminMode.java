@@ -51,18 +51,6 @@ public class AdminMode extends JavaPlugin implements Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTaskTimer(this, () ->
-                        Bukkit.getOnlinePlayers()
-                                .stream()
-                                .filter(p -> p.hasPermission("group.adminmode") || p.hasPermission("group.modmode"))
-                                .forEach(player -> {
-                                    var coloredDisplayName = Component.text(player.getName()).color(TextColor.color(0, 255, 0));
-                                    player.displayName(coloredDisplayName);
-
-                                    var actionBarMsg = Component.text("You are currently in StaffMode").color(TextColor.color(0, 255, 0));
-                                    player.sendActionBar(actionBarMsg);
-                                })
-                , 1, 20);
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player a : Bukkit.getOnlinePlayers()) {
